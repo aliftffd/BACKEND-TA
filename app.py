@@ -1,8 +1,18 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import serial
+import mysql.connector
 from threading import Lock
 from datetime import datetime
+
+
+mydb = mysql.connector.connect(
+  host="localhost",
+  user="user_name",
+  password="password database",
+  database="name database u use"
+)
+
 
 """
 Background Thread
@@ -19,7 +29,14 @@ Get current date time
 """
 def get_current_datetime():
     now = datetime.now()
-    return now.strftime("%m/%d/%Y %H:%M:%S")
+    return now.strftime("%Y-%m-%d %H:%M:%S")
+
+def insert_data(flt, date):
+    mycursor = mydb.cursor()
+    sql = "INSERT INTO sensors_data (value, date) VALUES (%s, %s)"
+    val = (flt, date)
+    mycursor.execute(sql, val)
+    mydb.commit()
 
 """
 Generate random sequence of dummy sensor values and send it to our clients
@@ -29,9 +46,17 @@ def background_thread():
     while True:
         try:
             data = ser.readline().decode("utf-8")
+            print("Raw data:", data)  # Add this line for debugging
             flt = float(data)
-            socketio.emit('updateSensorData', {'value': flt, "date": get_current_datetime()})
-            socketio.sleep(1)
+            current_datetime = get_current_datetime()
+            
+            # Insert data into MySQL database
+            insert_data(flt, current_datetime)
+            
+            # Emit data to clients
+            socketio.emit('updateSensorData', {'value': flt, "date": current_datetime})
+            
+            socketio.sleep(5)
         except Exception as e:
             print("Error reading from serial:", e)
 
