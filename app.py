@@ -19,10 +19,26 @@ Background Thread
 """
 thread = None
 thread_lock = Lock()
-ser = serial.Serial('COM5', 115200)
+ser1 = serial.Serial('COM5', 115200)
+ser2 = serial.Serial('',115200) 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'donsky!'
 socketio = SocketIO(app, cors_allowed_origins='*')
+
+def send_rfid_cmd(cmd):
+    data = bytes.fromhex(cmd)
+    test_serial.write(data)
+    response = test_serial.read(1000)
+    response_hex = response.hex().upper()
+    hex_list = [response_hex[i:i+2] for i in range(0, len(response_hex), 2)]
+    hex_space = ' '.join(hex_list)
+    
+    if hex_space == 'BB 01 FF 00 01 15 16 7E':
+        return "no respon"
+    elif hex_space.startswith('BB 02 22 00'):
+        return hex_space.split()[-6:-2]  # Ambil ID saja
+    else: 
+        return None
 
 """
 Get current date time
